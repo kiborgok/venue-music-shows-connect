@@ -32,7 +32,8 @@ migrate = Migrate(app, db)
 # Models.
 #----------------------------------------------------------------------------#
 
-
+# see https://flask-sqlalchemy.palletsprojects.com/en/2.x/models/
+# see https://realpython.com/flask-by-example-part-2-postgres-sqlalchemy-and-alembic/#local-migration
 class Venue(db.Model):
     __tablename__ = 'venues'
 
@@ -52,7 +53,9 @@ class Venue(db.Model):
 
     def __repr__(self):
         return f'<Venue {self.name} {self.city} {self.state}>'
-    
+    #set up properties for Venue schema
+    # see https://www.programiz.com/python-programming/property
+    # see https://github.com/richie-edwards/Fyyur/blob/master/app.py
     @property 
     def upcoming_shows(self):
       upcoming_shows = []
@@ -110,7 +113,9 @@ class Artist(db.Model):
 
     def __repr__(self):
         return f'<Artist {self.name} >'
-
+    #set up properties for Artist schema
+    # see https://www.programiz.com/python-programming/property
+    # see https://github.com/richie-edwards/Fyyur/blob/master/app.py
     @property 
     def upcoming_shows(self):
       upcoming_shows = []
@@ -187,13 +192,15 @@ def index():
 @app.route('/venues')
 def venues():
   # TODO: replace with real venues data.
-  #       num_upcoming_shows should be aggregated based on number of upcoming shows per venue.
+  # num_upcoming_shows should be aggregated based on number of upcoming shows per venue.
   data = []
   venues = Venue.query.all()
   unique_city_states = set()
   for venue in venues:
+      #get unique 'city' and 'state' tuple values by adding all results to a Set()
       unique_city_states.add((venue.city, venue.state))
   for city_state in unique_city_states:
+    #Iterate through and return venues in the respective 'city'/'state'
     city = city_state[0]
     state = city_state[1]
     venues_in_city = Venue.query.filter_by(city=city, state=state).all()
@@ -327,6 +334,7 @@ def search_artists():
   # seach for "A" should return "Guns N Petals", "Matt Quevado", and "The Wild Sax Band".
   # search for "band" should return "The Wild Sax Band".
   search_term = request.form.get('search_term', '')
+  # see https://stackoverflow.com/questions/42579400/search-function-query-in-flask-sqlalchemy
   artists = Artist.query.filter(Artist.name.ilike('%' + search_term + '%')).all()
   data = []
   for artist in artists:
@@ -362,6 +370,7 @@ def edit_artist(artist_id):
     "name": artist_data.name,
   }
   # TODO: populate form with fields from artist with ID <artist_id>
+  # see https://stackoverflow.com/questions/23712986/pre-populate-a-wtforms-in-flask-with-data-from-a-sqlalchemy-object
   form = ArtistForm(obj=artist_data)
   return render_template('forms/edit_artist.html', form=form, artist=artist)
 
@@ -406,6 +415,7 @@ def edit_venue(venue_id):
     "name": venue_data.name,
   }
   # TODO: populate form with values from venue with ID <venue_id>
+  # see https://stackoverflow.com/questions/23712986/pre-populate-a-wtforms-in-flask-with-data-from-a-sqlalchemy-object
   form = VenueForm(obj=venue_data)
   return render_template('forms/edit_venue.html', form=form, venue=venue)
 
