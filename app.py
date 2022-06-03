@@ -2,6 +2,7 @@
 # Imports
 #----------------------------------------------------------------------------#
 
+from crypt import methods
 from email.policy import default
 import json
 import dateutil.parser
@@ -47,10 +48,10 @@ class Venue(db.Model):
     seeking_description = db.Column(db.String(600), nullable=True)
     website = db.Column(db.String(120), nullable=True)
     genres = db.Column(db.ARRAY(db.String(120)))
-    shows = db.relationship('Show', backref='venues', lazy=True)
+    shows = db.relationship('Show', backref='venues', lazy=True, cascade="all, delete")
 
     def __repr__(self):
-        return f'<Venue {self.id} {self.name} {self.city} {self.state}>'
+        return f'<Venue {self.name} {self.city} {self.state}>'
     
     @property 
     def upcoming_shows(self):
@@ -106,6 +107,9 @@ class Artist(db.Model):
     seeking_venue = db.Column(db.Boolean, default=False)
     seeking_description = db.Column(db.String(120), nullable=True)
     shows = db.relationship('Show', backref='artists', lazy=True)
+
+    def __repr__(self):
+        return f'<Artist {self.name} >'
 
     @property 
     def upcoming_shows(self):
@@ -203,20 +207,24 @@ def venues():
 
 @app.route('/venues/search', methods=['POST'])
 def search_venues():
-  # TODO: implement search on artists with partial string search. Ensure it is case-insensitive.
+  # TODO: implement search on venues with partial string search. Ensure it is case-insensitive.
   # seach for Hop should return "The Musical Hop".
   # search for "Music" should return "The Musical Hop" and "Park Square Live Music & Coffee"
-  response={
-    "count": 1,
-    "data": [{
-      "id": 2,
-      "name": "The Dueling Pianos Bar",
-      "num_upcoming_shows": 0,
-    }]
+  search_term = request.form.get('search_term', '')
+  venues = Venue.query.filter(Venue.name.ilike('%' + search_term + '%')).all()
+  data = []
+  for venue in venues:
+    data.append({
+      "id": venue.id,
+      "name": venue.name
+    })
+  response = {
+    "count": len(data),
+    "data": data
   }
-  return render_template('pages/search_venues.html', results=response, search_term=request.form.get('search_term', ''))
+  return render_template('pages/search_venues.html', results=response, search_term=search_term)
 
-@app.route('/venues/<int:venue_id>')
+@app.route('/venues/<int:venue_id>', methods=['GET'])
 def show_venue(venue_id):
   # shows the venue page with the given venue_id
   # TODO: replace with real venue data from the venues table, using venue_id
@@ -285,15 +293,26 @@ def create_venue_submission():
 
   return render_template('pages/home.html')
 
-@app.route('/venues/<venue_id>', methods=['DELETE'])
+@app.route('/venues/<int:venue_id>', methods=['DELETE'])
 def delete_venue(venue_id):
   # TODO: Complete this endpoint for taking a venue_id, and using
   # SQLAlchemy ORM to delete a record. Handle cases where the session commit could fail.
-
+  error = False
+  try:
+      venue = Venue.query.get(venue_id)
+      db.session.delete(venue)
+      db.session.commit()
+  except:
+      db.session.rollback()
+      error = True
+  finally:
+      db.session.close()
+  if error:
+      server_error(500)
+  
   # BONUS CHALLENGE: Implement a button to delete a Venue on a Venue Page, have it so that
   # clicking that button delete it from the db then redirect the user to the homepage
-  return None
-
+  return redirect(url_for('home'))
 #  Artists
 #  ----------------------------------------------------------------
 @app.route('/artists')
@@ -307,15 +326,19 @@ def search_artists():
   # TODO: implement search on artists with partial string search. Ensure it is case-insensitive.
   # seach for "A" should return "Guns N Petals", "Matt Quevado", and "The Wild Sax Band".
   # search for "band" should return "The Wild Sax Band".
-  response={
-    "count": 1,
-    "data": [{
-      "id": 4,
-      "name": "Guns N Petals",
-      "num_upcoming_shows": 0,
-    }]
+  search_term = request.form.get('search_term', '')
+  artists = Artist.query.filter(Artist.name.ilike('%' + search_term + '%')).all()
+  data = []
+  for artist in artists:
+    data.append({
+      "id": artist.id,
+      "name": artist.name
+    })
+  response = {
+    "count": len(data),
+    "data": data
   }
-  return render_template('pages/search_artists.html', results=response, search_term=request.form.get('search_term', ''))
+  return render_template('pages/search_artists.html', results=response, search_term=search_term)
 
 @app.route('/artists/<int:artist_id>')
 def show_artist(artist_id):
@@ -448,11 +471,13 @@ def create_artist_submission():
       db.session.add(artist)
       db.session.commit()
       # TODO: modify data to be the data object returned from db insertion
-      data = {
+      print(artist)
+      if artist:
+        data = {
         "name": artist.name
-      }
+        }
       # on successful db insert, flash success
-      flash('Artist ' + data.name + ' was successfully listed!')
+      flash('Artist ' + data["name"] + ' was successfully listed!')
     except:
       db.session.rollback()
       # TODO: on unsuccessful db insert, flash an error instead.
@@ -477,7 +502,7 @@ def shows():
     artist = Artist.query.get(show.artist_id)
     venue = Venue.query.get(show.venue_id)
     data.append({
-      "venue_id": show.id,
+      "venue_id": show.venue_id,
       "venue_name": venue.name,
       "artist_id": show.artist_id,
       "artist_name": artist.name,
