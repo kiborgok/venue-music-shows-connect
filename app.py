@@ -471,7 +471,6 @@ def create_artist_submission():
       db.session.add(artist)
       db.session.commit()
       # TODO: modify data to be the data object returned from db insertion
-      print(artist)
       if artist:
         data = {
         "name": artist.name
